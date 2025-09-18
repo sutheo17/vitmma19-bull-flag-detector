@@ -1,0 +1,1 @@
+# vitmma19-bull-flag-detector

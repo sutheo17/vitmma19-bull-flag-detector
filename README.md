@@ -2,9 +2,9 @@
 
 ## Project Information
 
-- **Selected Topic**: [Enter Topic Name Here, options: AnkleAlign, Legal Text Decoder, Bull-flag detector, End-of-trip delay prediction]
-- **Student Name**: [Enter Your Name Here]
-- **Aiming for +1 Mark**: [Yes/No]
+- **Selected Topic**: Bull-flag detector
+- **Student Name**: Sütheö István (Neptun: XOBJYX)
+- **Aiming for +1 Mark**: No
 
 ## Solution Description
 

@@ -84,17 +84,13 @@ def parse_annotation_time(time_val):
     if time_val is None:
         return None
         
-    # 1. Próbáljuk meg számmá konvertálni (float kezeli a string int-et is)
     try:
         numeric_ts = float(time_val)
-        # Ha nagyon nagy szám, akkor ms (pl. 1707829200000)
-        # Ha kicsi, akkor s (pl. 1707829200)
         if numeric_ts > 3e10: 
             return pd.to_datetime(numeric_ts, unit='ms')
         else:
             return pd.to_datetime(numeric_ts, unit='s')
     except (ValueError, TypeError):
-        # Nem szám, hanem valódi dátum string (pl. "2024-02-14")
         return pd.to_datetime(time_val)
 
 def main():
@@ -113,17 +109,31 @@ def main():
 
     for subdir in subdirs:
         current_dir = os.path.join(config.DATA_DIR, subdir)
-        labels_path = os.path.join(current_dir, "labels.json")
         
-        if not os.path.exists(labels_path):
+        # --- ÚJ LOGIKA: JSON fájl keresése névtől függetlenül ---
+        try:
+            files_in_subdir = os.listdir(current_dir)
+            # Megkeressük az első fájlt, ami .json-re végződik
+            json_filename = next((f for f in files_in_subdir if f.endswith('.json')), None)
+            
+            if json_filename is None:
+                # Ha nincs JSON a mappában, kihagyjuk
+                continue
+                
+            labels_path = os.path.join(current_dir, json_filename)
+            
+        except Exception as e:
+            print(f"Error accessing folder {subdir}: {e}")
             continue
+        # --------------------------------------------------------
 
-        print(f"Processing folder: {subdir}")
+        print(f"Processing folder: {subdir} (Found JSON: {json_filename})")
         
         try:
             with open(labels_path, 'r') as f:
                 tasks = json.load(f)
-        except:
+        except Exception as e:
+            print(f"Error loading JSON {labels_path}: {e}")
             continue
 
         for task in tasks:
@@ -157,7 +167,7 @@ def main():
                     label_id = get_label_id(labels[0])
                     if label_id == -1: continue
                     
-                    # 2. JSON Időbélyegek javítása (ITT VOLT A HIBA)
+                    # 2. JSON Időbélyegek javítása
                     start_time = parse_annotation_time(val.get('start'))
                     end_time = parse_annotation_time(val.get('end'))
                     

@@ -29,10 +29,23 @@ WEDGE_THRESHOLD = 0.0025    # Ha a meredekség ez alatt van (de Pennant felett) 
 
 MA_WINDOW = 5  # Mozgóátlag ablak mérete a konszolidációs szakaszon
 
-# --- Hiperparaméterek ---
-BATCH_SIZE = 32          # Növeltük 16-ról 32-re a stabilabb tanulásért
-EPOCHS = 200             # Több epoch, mert lassabban tanulunk
-LEARNING_RATE = 0.0005   # Csökkentettük 0.001-ről (kisebb lépések)
-WEIGHT_DECAY = 1e-4      # L2 Regularizáció (új)
-DROPOUT_RATE = 0.5       # Dropout
+BATCH_SIZE = 16
+EPOCHS = 200
+LEARNING_RATE = 0.0008
+WEIGHT_DECAY = 0.0
+DROPOUT_RATE = 0.15
+
+# scheduler / early stop
+LR_FACTOR = 0.5
+LR_PATIENCE = 10
+EARLY_STOP_PATIENCE = 40
+
+# grad clip
+MAX_GRAD_NORM = 5.0
+
+# augmentation params
+SCALE_JITTER = 0.03  # +/-3%
+SHIFT_ENABLED = False
+SHIFT_RANGE = (-1, 1)  # if enabled, small shifts only
+
 TEST_SPLIT = 0.2

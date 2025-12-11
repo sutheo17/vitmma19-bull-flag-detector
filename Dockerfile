@@ -1,6 +1,8 @@
 # 1. Base Image kiválasztása (GPU-s PyTorch példa)
 FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
 
+ENV PYTHONUNBUFFERED=1
+
 # 2. Munkakönyvtár beállítása a konténeren belül
 WORKDIR /app
 

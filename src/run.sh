@@ -16,4 +16,7 @@ python 02-train.py
 echo "Running model evaluation..."
 python 03-evaluation.py
 
+echo "Running model inference..."
+python 04-inference.py
+
 echo "Pipeline finished successfully."

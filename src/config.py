@@ -12,14 +12,13 @@ SEQ_LENGTH = 60       # Bemeneti ablak hossza (pl. 60 gyertya)
 NUM_FEATURES = 4      # Open, High, Low, Close
 
 # --- Osztályok (Labels) ---
-# 0: Zaj (Noise)
 # 1: Bullish Normal
 # 2: Bullish Pennant
 # 3: Bullish Wedge
 # 4: Bearish Normal
 # 5: Bearish Pennant
 # 6: Bearish Wedge
-NUM_CLASSES = 7 
+NUM_CLASSES = 6
 
 # --- Tanítási hiperparaméterek ---
 BATCH_SIZE = 16

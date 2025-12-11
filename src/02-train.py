@@ -48,6 +48,16 @@ class FlagClassifier(nn.Module):
 def train():
     logger.info("--- Training Script Started ---")
     
+    # --- EZT A BLOKKOT ADD HOZZÁ ---
+    logger.info("1. Configuration (Hyperparameters):")
+    logger.info(f"   EPOCHS: {config.EPOCHS}")
+    logger.info(f"   BATCH_SIZE: {config.BATCH_SIZE}")
+    logger.info(f"   LEARNING_RATE: {config.LEARNING_RATE}")
+    logger.info(f"   SEQ_LENGTH: {config.SEQ_LENGTH}")
+    logger.info(f"   NUM_CLASSES: {config.NUM_CLASSES}")
+    logger.info(f"   TEST_SPLIT: {config.TEST_SPLIT}")
+    # -------------------------------
+    
     # 1. Load Data
     if not os.path.exists(config.PROCESSED_DATA_PATH):
         logger.error(f"Processed data not found at {config.PROCESSED_DATA_PATH}. Run preprocessing first.")

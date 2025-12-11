@@ -15,7 +15,7 @@ FlagClassifier = train_module.FlagClassifier
 logger = get_logger()
 
 def evaluate():
-    logger.info("--- Evaluation Script (No Noise) ---")
+    logger.info("--- Evaluation Script ---")
 
     if not os.path.exists(config.PROCESSED_DATA_PATH):
         logger.error("Data file not found.")
@@ -57,16 +57,21 @@ def evaluate():
     ]
     
     report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=0)
-    
+    acc_dl = (np.array(all_preds) == np.array(all_labels)).mean()
+
     logger.info("\nClassification Report:")
+    print("\n" + "="*60)
+    print(f"DEEP LEARNING MODEL REPORT (Accuracy: {acc_dl*100:.2f}%)")
+    print("="*60)
     print(report)
+    print("-"*60)
     
     output_dir = "/app/output"
     os.makedirs(output_dir, exist_ok=True)
     
     report_path = os.path.join(output_dir, "evaluation_metrics.txt")
     with open(report_path, "w") as f:
-        f.write("Evaluation Metrics (No Noise Class)\n")
+        f.write("Evaluation Metrics (DL)\n")
         f.write("===================================\n\n")
         f.write(report)
     logger.info(f"Metrics saved to {report_path}")

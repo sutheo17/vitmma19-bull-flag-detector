@@ -20,8 +20,19 @@ NUM_FEATURES = 4      # Open, High, Low, Close
 # 6: Bearish Wedge
 NUM_CLASSES = 6
 
-# --- Tanítási hiperparaméterek ---
-BATCH_SIZE = 16
-EPOCHS = 100
-LEARNING_RATE = 0.001
+# --- HEURISZTIKA BEÁLLÍTÁSOK ---
+# A normalizált adatokhoz (ahol 0.01 kb 1% árváltozást jelent) igazított küszöbértékek.
+# Ezek határozzák meg, hogy a konszolidáció dőlésszöge "lapos" (Pennant) vagy "meredek" (Flag/Wedge).
+PENNANT_THRESHOLD = 0.0005  # Ha a meredekség abszolút értéke ez alatt van -> Pennant (közel vízszintes)
+WEDGE_THRESHOLD = 0.0025    # Ha a meredekség ez alatt van (de Pennant felett) -> Wedge (kevésbé meredek)
+                            # Ha ezen felül van -> Normal Flag (erős korrekció)
+
+MA_WINDOW = 5  # Mozgóátlag ablak mérete a konszolidációs szakaszon
+
+# --- Hiperparaméterek ---
+BATCH_SIZE = 32          # Növeltük 16-ról 32-re a stabilabb tanulásért
+EPOCHS = 200             # Több epoch, mert lassabban tanulunk
+LEARNING_RATE = 0.0005   # Csökkentettük 0.001-ről (kisebb lépések)
+WEIGHT_DECAY = 1e-4      # L2 Regularizáció (új)
+DROPOUT_RATE = 0.5       # Dropout
 TEST_SPLIT = 0.2

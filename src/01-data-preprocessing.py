@@ -34,11 +34,7 @@ def interpolate_sequence(seq, target_length):
     return np.stack(result, axis=1)
 
 def get_label_id(label_str):
-    """
-    ÚJ ID KIOSZTÁS (0-5):
-    Bullish: Normal=0, Pennant=1, Wedge=2
-    Bearish: Normal=3, Pennant=4, Wedge=5
-    """
+    """Mapping labels to IDs (0-5)."""
     if "Bullish" in label_str:
         if "Pennant" in label_str: return 1
         if "Wedge" in label_str:   return 2
@@ -50,6 +46,56 @@ def get_label_id(label_str):
         return 3 # Normal
         
     return -1
+
+def robust_parse_dates(df):
+    """
+    Javított dátumfelismerés DataFrame oszlopra.
+    """
+    col_map = {c.lower(): c for c in df.columns}
+    ts_col = col_map.get('timestamp') or col_map.get('time') or col_map.get('date')
+    
+    if not ts_col:
+        return df
+
+    # Próbáljuk meg numerikussá alakítani
+    temp_col = pd.to_numeric(df[ts_col], errors='coerce')
+    
+    # Ha a többség szám (Unix timestamp)
+    if temp_col.notna().sum() > len(df) * 0.8:
+        temp_col = temp_col.ffill().bfill()
+        first_val = temp_col.iloc[0]
+        
+        # > 3e10 (kb 1971-es év másodpercben) -> valószínűleg ms
+        if first_val > 3e10:
+            df[ts_col] = pd.to_datetime(temp_col, unit='ms')
+        else:
+            df[ts_col] = pd.to_datetime(temp_col, unit='s')
+    else:
+        df[ts_col] = pd.to_datetime(df[ts_col], errors='coerce')
+
+    df = df.set_index(ts_col).sort_index()
+    return df
+
+def parse_annotation_time(time_val):
+    """
+    Egyetlen JSON időérték biztonságos parse-olása.
+    Kezeli a string-be csomagolt Unix timestamp-et (ms) is.
+    """
+    if time_val is None:
+        return None
+        
+    # 1. Próbáljuk meg számmá konvertálni (float kezeli a string int-et is)
+    try:
+        numeric_ts = float(time_val)
+        # Ha nagyon nagy szám, akkor ms (pl. 1707829200000)
+        # Ha kicsi, akkor s (pl. 1707829200)
+        if numeric_ts > 3e10: 
+            return pd.to_datetime(numeric_ts, unit='ms')
+        else:
+            return pd.to_datetime(numeric_ts, unit='s')
+    except (ValueError, TypeError):
+        # Nem szám, hanem valódi dátum string (pl. "2024-02-14")
+        return pd.to_datetime(time_val)
 
 def main():
     print(f"Data Processing...")
@@ -90,10 +136,13 @@ def main():
             try:
                 df = pd.read_csv(csv_path)
                 df.columns = [c.capitalize() for c in df.columns] 
-                if 'Timestamp' in df.columns:
-                    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-                    df = df.set_index('Timestamp').sort_index()
-            except: continue
+                
+                # 1. CSV Időbélyeg javítása
+                df = robust_parse_dates(df)
+                
+            except Exception as e:
+                print(f"Skipping {csv_path} due to load error: {e}")
+                continue
 
             annotations = task.get('annotations', [])
             
@@ -108,15 +157,23 @@ def main():
                     label_id = get_label_id(labels[0])
                     if label_id == -1: continue
                     
-                    start_time = pd.to_datetime(val.get('start'))
-                    end_time = pd.to_datetime(val.get('end'))
+                    # 2. JSON Időbélyegek javítása (ITT VOLT A HIBA)
+                    start_time = parse_annotation_time(val.get('start'))
+                    end_time = parse_annotation_time(val.get('end'))
                     
-                    # Adatok kivágása
+                    if start_time is None or end_time is None:
+                        continue
+                    
+                    # Időablak kivágása
                     mask = (df.index >= start_time) & (df.index <= end_time)
+                    
                     try:
                         window = df.loc[mask, ['Open', 'High', 'Low', 'Close']].values
                     except KeyError:
-                        window = df.loc[mask, ['open', 'high', 'low', 'close']].values
+                        try:
+                            window = df.loc[mask, ['open', 'high', 'low', 'close']].values
+                        except KeyError:
+                            continue
 
                     if len(window) > 5:
                         window_norm = window / window[0] - 1.0
@@ -124,13 +181,11 @@ def main():
                         
                         all_X.append(window_resized)
                         all_y.append(label_id)
-
-            # ITT TÖRÖLTÜK A ZAJ GENERÁLÁST
             
             total_tasks_processed += 1
 
     if len(all_X) == 0:
-        print("HIBA: Nem sikerült mintákat kinyerni.")
+        print("ERROR: No valid samples extracted.")
         return
 
     X = np.array(all_X, dtype=np.float32)

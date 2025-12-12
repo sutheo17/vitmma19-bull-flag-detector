@@ -12,13 +12,20 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from utils import get_logger
-from utils import compute_class_weights
 from config import (SEQ_LENGTH, NUM_FEATURES, NUM_CLASSES, BATCH_SIZE, EPOCHS,
                     LEARNING_RATE, WEIGHT_DECAY, DROPOUT_RATE,
                     LR_FACTOR, LR_PATIENCE, EARLY_STOP_PATIENCE,
                     MAX_GRAD_NORM, SCALE_JITTER, SHIFT_ENABLED, SHIFT_RANGE, PROCESSED_DATA_PATH, MODEL_SAVE_PATH, TEST_SPLIT)
 
 logger = get_logger()
+
+def compute_class_weights(y_train, device):
+    counts = torch.bincount(y_train)
+    counts = torch.max(counts, torch.ones_like(counts))
+    total = len(y_train)
+    num_classes = len(counts)
+    weights = total / (num_classes * counts.float())
+    return weights.to(device)
 
 # ---------------- MODEL ----------------
 class FlagClassifier(nn.Module):

@@ -48,8 +48,8 @@ def heuristic_predict_single(sequence):
         pivot_idx = np.argmin(low_p)
         
     # Ha a pivot a minta legvégén van, nincs konszolidáció -> Default Normal
-    if pivot_idx >= len(sequence) - 2:
-        slope = 0.0
+    if pivot_idx >= len(sequence) - 5: # Kicsit szigorúbb feltétel (pl. utolsó 5 gyertya)
+        slope = 1.0 # Mesterségesen nagy szám, hogy NORMAL legyen, ne Pennant!
     else:
         # 3. Mozgóátlag számítása a konszolidációs szakaszra
         cons_data = close_p[pivot_idx:]
@@ -75,25 +75,19 @@ def heuristic_predict_single(sequence):
     # - Wedge/Flag: Az átlagos dőlésszög a trenddel ellentétes.
     
     if is_bullish:
-        # Bullish esetben a konszolidáció lefelé (negatív) dől
-        # Slope < 0 elvárt, de a Pennant közel 0
-        
         if slope_abs <= PENNANT_THRESHOLD:
-            return 1 # Bull Pennant (Lapos)
+            return 1 # Pennant (Lapos)
         elif slope_abs <= WEDGE_THRESHOLD:
-            return 2 # Bull Wedge (Kevésbé meredek / Konvergáló)
+            return 2 # Wedge (Enyhe)
         else:
-            return 0 # Bull Normal (Meredek csatorna lefelé)
-            
+            return 0 # Normal (Meredek VAGY Nincs konszolidáció)
     else: # Bearish
-        # Bearish esetben a konszolidáció felfelé (pozitív) dől
-        
         if slope_abs <= PENNANT_THRESHOLD:
-            return 4 # Bear Pennant (Lapos)
+            return 4 # Pennant
         elif slope_abs <= WEDGE_THRESHOLD:
-            return 5 # Bear Wedge (Kevésbé meredek / Konvergáló)
+            return 5 # Wedge
         else:
-            return 3 # Bear Normal (Meredek csatorna felfelé)
+            return 3 # Normal
 
 def run_baseline_comparison():
     logger.info("--- Baseline (Heuristic) vs Deep Learning Comparison ---")

@@ -6,6 +6,7 @@ DATA_DIR = "/app/data"  # A docker run -v paranccsal ide mountoljuk a fájlokat
 LABELS_JSON_PATH = os.path.join(DATA_DIR, "labels.json")
 PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed_data.npz")
 MODEL_SAVE_PATH = "model.pth"
+DATABASE_LINK = "https://bmeedu-my.sharepoint.com/:u:/g/personal/gyires-toth_balint_vik_bme_hu/IQAK7NwTLL-kSZzXylIIkQFOAX1TXEZYIDQomXH4sf0-zLQ?download=1"
 
 # --- Adatfeldolgozási paraméterek ---
 SEQ_LENGTH = 60       # Bemeneti ablak hossza (pl. 60 gyertya)
@@ -23,8 +24,8 @@ NUM_CLASSES = 6
 # --- HEURISZTIKA BEÁLLÍTÁSOK ---
 # A normalizált adatokhoz (ahol 0.01 kb 1% árváltozást jelent) igazított küszöbértékek.
 # Ezek határozzák meg, hogy a konszolidáció dőlésszöge "lapos" (Pennant) vagy "meredek" (Flag/Wedge).
-PENNANT_THRESHOLD = 0.0005  # Ha a meredekség abszolút értéke ez alatt van -> Pennant (közel vízszintes)
-WEDGE_THRESHOLD = 0.0025    # Ha a meredekség ez alatt van (de Pennant felett) -> Wedge (kevésbé meredek)
+PENNANT_THRESHOLD = 0.00004  # Ha a meredekség abszolút értéke ez alatt van -> Pennant (közel vízszintes)
+WEDGE_THRESHOLD = 0.00015   # Ha a meredekség ez alatt van (de Pennant felett) -> Wedge (kevésbé meredek)
                             # Ha ezen felül van -> Normal Flag (erős korrekció)
 
 MA_WINDOW = 5  # Mozgóátlag ablak mérete a konszolidációs szakaszon

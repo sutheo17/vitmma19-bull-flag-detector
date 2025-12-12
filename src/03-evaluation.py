@@ -14,6 +14,48 @@ FlagClassifier = train_module.FlagClassifier
 
 logger = get_logger()
 
+def save_misclassified_examples(model, test_loader, device, output_dir):
+    model.eval()
+    
+    # Osztályok indexei a te mappinged alapján
+    # Bear Normal = 3
+    # Bull Wedge = 2
+    TRUE_CLASS = 3
+    PRED_CLASS = 2
+    
+    count = 0
+    os.makedirs(os.path.join(output_dir, "errors"), exist_ok=True)
+    
+    import matplotlib.pyplot as plt
+
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            
+            # Keressük meg a hibásakat
+            for i in range(len(labels)):
+                if labels[i] == TRUE_CLASS and predicted[i] == PRED_CLASS:
+                    # Kimentjük a képet
+                    seq = inputs[i].cpu().numpy().T # (Features, Seq) -> (Seq, Features) transzponálás vissza
+                    
+                    plt.figure(figsize=(5, 3))
+                    # Csak a Close árat (3. index) rajzoljuk ki, vagy az összeset
+                    # Open=0, High=1, Low=2, Close=3
+                    plt.plot(seq[:, 3], label='Close Price', color='black')
+                    plt.plot(seq[:, 0], label='Open', linestyle='--', alpha=0.5)
+                    plt.title(f"True: BearNormal(3) -> Pred: BullWedge(2)\nIndex: {count}")
+                    plt.legend()
+                    plt.grid(True)
+                    
+                    filename = os.path.join(output_dir, "errors", f"error_bear3_pred_bull2_{count}.png")
+                    plt.savefig(filename)
+                    plt.close()
+                    
+                    count += 1
+                    if count >= 20: return # Elég az első 20-at látni
+
 def evaluate():
     logger.info("--- Evaluation Script ---")
 
@@ -87,6 +129,8 @@ def evaluate():
     cm_path = os.path.join(output_dir, "confusion_matrix.png")
     plt.savefig(cm_path)
     logger.info(f"Confusion matrix saved to {cm_path}")
+
+    save_misclassified_examples(model, test_loader, device, output_dir)
 
 if __name__ == "__main__":
     evaluate()

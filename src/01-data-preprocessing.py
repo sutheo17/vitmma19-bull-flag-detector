@@ -3,9 +3,61 @@ import os
 import pandas as pd
 import numpy as np
 import config
+import requests
+import zipfile
+from utils import get_logger
+
+# Initialize Logger
+logger = get_logger()
+
+def download_and_setup_data(url=config.DATABASE_LINK, output_dir=config.DATA_DIR):
+    """
+    Downloads the ZIP file from the specified URL and extracts it to the target directory.
+    Uses the central logger.
+    """
+    # 1. Create target directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        logger.info(f"Directory created: {output_dir}")
+
+    # Temporary filename for download
+    temp_zip = "temp_dataset_download.zip"
+
+    logger.info(f"Starting download from: {url} ...")
+    
+    try:
+        # 2. Download with streaming
+        response = requests.get(url, stream=True)
+        response.raise_for_status() # Raise error if link is unreachable
+        
+        total_size = 0
+        with open(temp_zip, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    total_size += len(chunk)
+        
+        size_mb = total_size / (1024 * 1024)
+        logger.info(f"Download complete! Size: {size_mb:.2f} MB")
+        logger.info("Unzipping in progress...")
+
+        # 3. Extract to target directory
+        with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+            zip_ref.extractall(output_dir)
+            
+        logger.info(f"Successfully extracted to: {output_dir}")
+
+    except Exception as e:
+        logger.error(f"Error occurred during download/extraction: {e}")
+    
+    finally:
+        # 4. Cleanup: remove temporary zip
+        if os.path.exists(temp_zip):
+            os.remove(temp_zip)
+            logger.info("Temporary files deleted.")
 
 def find_csv_file(target_filename, search_dir):
-    """Megkeresi a fájlt a mappában."""
+    """Locates the file in the specified directory."""
     exact_path = os.path.join(search_dir, target_filename)
     if os.path.exists(exact_path):
         return exact_path
@@ -23,7 +75,7 @@ def find_csv_file(target_filename, search_dir):
     return None
 
 def interpolate_sequence(seq, target_length):
-    """Lineáris interpolációval átméretezi a szekvenciát."""
+    """Resizes the sequence using linear interpolation."""
     if len(seq) == 0: return np.zeros((target_length, seq.shape[1]))
     result = []
     for col in range(seq.shape[1]):
@@ -49,7 +101,7 @@ def get_label_id(label_str):
 
 def robust_parse_dates(df):
     """
-    Javított dátumfelismerés DataFrame oszlopra.
+    Improved date parsing for DataFrame columns.
     """
     col_map = {c.lower(): c for c in df.columns}
     ts_col = col_map.get('timestamp') or col_map.get('time') or col_map.get('date')
@@ -57,15 +109,15 @@ def robust_parse_dates(df):
     if not ts_col:
         return df
 
-    # Próbáljuk meg numerikussá alakítani
+    # Attempt to convert to numeric
     temp_col = pd.to_numeric(df[ts_col], errors='coerce')
     
-    # Ha a többség szám (Unix timestamp)
+    # If majority are numbers (Unix timestamp)
     if temp_col.notna().sum() > len(df) * 0.8:
         temp_col = temp_col.ffill().bfill()
         first_val = temp_col.iloc[0]
         
-        # > 3e10 (kb 1971-es év másodpercben) -> valószínűleg ms
+        # > 3e10 (approx. year 1971 in seconds) -> likely ms
         if first_val > 3e10:
             df[ts_col] = pd.to_datetime(temp_col, unit='ms')
         else:
@@ -78,8 +130,8 @@ def robust_parse_dates(df):
 
 def parse_annotation_time(time_val):
     """
-    Egyetlen JSON időérték biztonságos parse-olása.
-    Kezeli a string-be csomagolt Unix timestamp-et (ms) is.
+    Safe parsing of a single JSON time value.
+    Handles string-wrapped Unix timestamps (ms) as well.
     """
     if time_val is None:
         return None
@@ -94,10 +146,10 @@ def parse_annotation_time(time_val):
         return pd.to_datetime(time_val)
 
 def main():
-    print(f"Data Processing...")
+    download_and_setup_data()
     
     if not os.path.exists(config.DATA_DIR):
-        print(f"ERROR: Data directory not found: {config.DATA_DIR}")
+        logger.error(f"Data directory not found: {config.DATA_DIR}")
         return
 
     all_X = []
@@ -110,30 +162,30 @@ def main():
     for subdir in subdirs:
         current_dir = os.path.join(config.DATA_DIR, subdir)
         
-        # --- ÚJ LOGIKA: JSON fájl keresése névtől függetlenül ---
+        # --- Search for JSON file ---
         try:
             files_in_subdir = os.listdir(current_dir)
-            # Megkeressük az első fájlt, ami .json-re végződik
             json_filename = next((f for f in files_in_subdir if f.endswith('.json')), None)
             
             if json_filename is None:
-                # Ha nincs JSON a mappában, kihagyjuk
+                # If no JSON found, skip silently or log debug info
+                # logger.debug(f"No JSON found in {subdir}, skipping.")
                 continue
                 
             labels_path = os.path.join(current_dir, json_filename)
             
         except Exception as e:
-            print(f"Error accessing folder {subdir}: {e}")
+            logger.warning(f"Error accessing folder {subdir}: {e}")
             continue
-        # --------------------------------------------------------
+        # ---------------------------
 
-        print(f"Processing folder: {subdir} (Found JSON: {json_filename})")
+        logger.info(f"Processing folder: {subdir} (Found JSON: {json_filename})")
         
         try:
             with open(labels_path, 'r') as f:
                 tasks = json.load(f)
         except Exception as e:
-            print(f"Error loading JSON {labels_path}: {e}")
+            logger.error(f"Error loading JSON {labels_path}: {e}")
             continue
 
         for task in tasks:
@@ -147,11 +199,11 @@ def main():
                 df = pd.read_csv(csv_path)
                 df.columns = [c.capitalize() for c in df.columns] 
                 
-                # 1. CSV Időbélyeg javítása
+                # 1. Fix CSV Timestamp
                 df = robust_parse_dates(df)
                 
             except Exception as e:
-                print(f"Skipping {csv_path} due to load error: {e}")
+                logger.warning(f"Skipping {csv_path} due to load error: {e}")
                 continue
 
             annotations = task.get('annotations', [])
@@ -167,14 +219,14 @@ def main():
                     label_id = get_label_id(labels[0])
                     if label_id == -1: continue
                     
-                    # 2. JSON Időbélyegek javítása
+                    # 2. Fix JSON Timestamps
                     start_time = parse_annotation_time(val.get('start'))
                     end_time = parse_annotation_time(val.get('end'))
                     
                     if start_time is None or end_time is None:
                         continue
                     
-                    # Időablak kivágása
+                    # Slice time window
                     mask = (df.index >= start_time) & (df.index <= end_time)
                     
                     try:
@@ -195,17 +247,17 @@ def main():
             total_tasks_processed += 1
 
     if len(all_X) == 0:
-        print("ERROR: No valid samples extracted.")
+        logger.error("No valid samples extracted.")
         return
 
     X = np.array(all_X, dtype=np.float32)
     y = np.array(all_y, dtype=np.int64)
     
-    print(f"\nProcessing Complete!")
-    print(f"Total Samples: {len(X)}")
+    logger.info("Processing Complete!")
+    logger.info(f"Total Samples: {len(X)}")
     
     np.savez(config.PROCESSED_DATA_PATH, X=X, y=y)
-    print(f"Saved to: {config.PROCESSED_DATA_PATH}")
+    logger.info(f"Saved to: {config.PROCESSED_DATA_PATH}")
 
 if __name__ == "__main__":
     main()

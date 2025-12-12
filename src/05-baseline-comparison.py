@@ -2,85 +2,82 @@ import numpy as np
 import pandas as pd
 import torch
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import config
 from utils import get_logger
 from config import PENNANT_THRESHOLD, WEDGE_THRESHOLD, MA_WINDOW
 
-# Logger inicializálása
+# Initialize Logger
 logger = get_logger()
 
 def calculate_slope(values):
     """
-    Lineáris regressziót illeszt az adatokra és visszaadja a meredekséget (slope).
+    Fits linear regression to data and returns the slope.
     """
     if len(values) < 2:
         return 0.0
     x = np.arange(len(values))
-    # Polyfit: y = mx + b, visszaadja [m, b]-t
+    # Polyfit: y = mx + b, returns [m, b]
     slope, _ = np.polyfit(x, values, 1)
     return slope
 
 def heuristic_predict_single(sequence):
     """
-    Egyetlen mintára (sequence) alkalmazza a szabályalapú logikát.
-    Bemenet: (Seq_Len, 4) -> [Open, High, Low, Close]
-    Kimenet: Class ID (0-5)
+    Applies rule-based logic to a single sample.
+    Input: (Seq_Len, 4) -> [Open, High, Low, Close]
+    Output: Class ID (0-5)
     """
-    # Adatok szétbontása
+    # Break down data
     high_p = sequence[:, 1]
     low_p  = sequence[:, 2]
     close_p = sequence[:, 3]
     
-    # 1. Fő Trend meghatározása (Záróár vs Kezdőár)
-    # A preprocessing alapján a sequence az időben rendezett.
-    start_price = sequence[0, 0] # Open t=0
+    # 1. Determine Main Trend (Close vs Open)
+    start_price = sequence[0, 0] # Open t=0 (Pole Start)
     end_price = sequence[-1, 3]  # Close t=last
     
     is_bullish = end_price > start_price
     
-    # 2. Konszolidáció kezdetének meghatározása (Extrémumok)
+    # 2. Determine Consolidation Start (Extremes)
     if is_bullish:
-        # Bullish: A zászló nyele a csúcsig tart (Maximum High)
+        # Bullish: Pole goes up to the High
         pivot_idx = np.argmax(high_p)
     else:
-        # Bearish: A zászló nyele a mélypontig tart (Minimum Low)
+        # Bearish: Pole goes down to the Low
         pivot_idx = np.argmin(low_p)
         
-    # Ha a pivot a minta legvégén van, nincs konszolidáció -> Default Normal
-    if pivot_idx >= len(sequence) - 5: # Kicsit szigorúbb feltétel (pl. utolsó 5 gyertya)
-        slope = 1.0 # Mesterségesen nagy szám, hogy NORMAL legyen, ne Pennant!
+    # If pivot is at the very end, no consolidation -> Default Normal
+    if pivot_idx >= len(sequence) - 5: 
+        slope = 1.0 # Artificially high number to force NORMAL
     else:
-        # 3. Mozgóátlag számítása a konszolidációs szakaszra
+        # 3. Calculate Moving Average for consolidation phase
         cons_data = close_p[pivot_idx:]
         
-        # Pandas rolling mean használata
+        # Pandas rolling mean
         ma_series = pd.Series(cons_data).rolling(window=MA_WINDOW).mean()
         
-        # A mozgóátlag elején keletkező NaN értékeket feltöltjük (backfill)
+        # Fill NaN values created by MA
         ma_values = ma_series.bfill().fillna(0).values 
         
-        # 4. Meredekség (Slope) számítása az egyenes illesztésével
+        # 4. Calculate Slope
         slope = calculate_slope(ma_values)
 
-    # 5. Altípus meghatározása a meredekség alapján
+    # 5. Determine Subtype based on Slope
     # Class Map:
     # Bullish: Normal=0, Pennant=1, Wedge=2
     # Bearish: Normal=3, Pennant=4, Wedge=5
     
     slope_abs = abs(slope)
     
-    # Logika a csatolt ábra  geometriája alapján:
-    # - Pennant: Szimmetrikus háromszög, az átlagos dőlésszög vízszintes közeli.
-    # - Wedge/Flag: Az átlagos dőlésszög a trenddel ellentétes.
-    
     if is_bullish:
         if slope_abs <= PENNANT_THRESHOLD:
-            return 1 # Pennant (Lapos)
+            return 1 # Pennant (Flat)
         elif slope_abs <= WEDGE_THRESHOLD:
-            return 2 # Wedge (Enyhe)
+            return 2 # Wedge (Mild)
         else:
-            return 0 # Normal (Meredek VAGY Nincs konszolidáció)
+            return 0 # Normal (Steep or No Consolidation)
     else: # Bearish
         if slope_abs <= PENNANT_THRESHOLD:
             return 4 # Pennant
@@ -92,7 +89,7 @@ def heuristic_predict_single(sequence):
 def run_baseline_comparison():
     logger.info("--- Baseline (Heuristic) vs Deep Learning Comparison ---")
 
-    # 1. Adatok betöltése
+    # 1. Load Data
     if not os.path.exists(config.PROCESSED_DATA_PATH):
         logger.error(f"Data not found at {config.PROCESSED_DATA_PATH}")
         return
@@ -107,7 +104,7 @@ def run_baseline_comparison():
     ]
 
     # ----------------------------------------
-    # A. Heurisztikus Baseline Futtatása
+    # A. Run Heuristic Baseline
     # ----------------------------------------
     logger.info("Running Heuristic Baseline Model...")
     y_pred_baseline = []
@@ -118,14 +115,16 @@ def run_baseline_comparison():
         
     y_pred_baseline = np.array(y_pred_baseline)
     acc_baseline = accuracy_score(y_true, y_pred_baseline)
+    
+    report_baseline = classification_report(y_true, y_pred_baseline, target_names=class_names, zero_division=0)
 
     # ----------------------------------------
-    # B. Deep Learning Modell Futtatása (Ha létezik)
+    # B. Run Deep Learning Model (If exists)
     # ----------------------------------------
     y_pred_dl = None
     try:
         from importlib import import_module
-        train_module = import_module('02-train') # Dinamikus import a fájlnév miatt
+        train_module = import_module('02-train')
         FlagClassifier = train_module.FlagClassifier
         
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -139,7 +138,6 @@ def run_baseline_comparison():
             X_tensor = torch.FloatTensor(X).to(device)
             dl_preds = []
             
-            # Batch feldolgozás a memória kímélése érdekében
             batch_size = config.BATCH_SIZE
             with torch.no_grad():
                 for i in range(0, len(X), batch_size):
@@ -157,13 +155,37 @@ def run_baseline_comparison():
         logger.error(f"Failed to load DL model: {e}")
 
     # ----------------------------------------
-    # C. Eredmények Kiírása
+    # C. Print and Save Results
     # ----------------------------------------
     print("\n" + "="*60)
     print(f"BASELINE HEURISTIC REPORT (Accuracy: {acc_baseline*100:.2f}%)")
     print("="*60)
-    print(classification_report(y_true, y_pred_baseline, target_names=class_names, zero_division=0))
+    print(report_baseline)
     
+    # Save Baseline Metrics to File
+    output_dir = "/app/output"
+    os.makedirs(output_dir, exist_ok=True)
+    baseline_report_path = os.path.join(output_dir, "baseline_metrics.txt")
+    
+    with open(baseline_report_path, "w") as f:
+        f.write(f"Baseline Heuristic Report (Accuracy: {acc_baseline*100:.2f}%)\n")
+        f.write("==================================================\n")
+        f.write(report_baseline)
+    logger.info(f"Baseline metrics saved to {baseline_report_path}")
+
+    # Save Baseline Confusion Matrix
+    cm_base = confusion_matrix(y_true, y_pred_baseline)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm_base, annot=True, fmt='d', cmap='Oranges', xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Baseline Confusion Matrix')
+    
+    cm_path = os.path.join(output_dir, "baseline_confusion_matrix.png")
+    plt.savefig(cm_path)
+    logger.info(f"Baseline Confusion Matrix saved to {cm_path}")
+    plt.close()
+
     if y_pred_dl is not None:
         print("-"*60)
 
@@ -172,8 +194,6 @@ def run_baseline_comparison():
         print(f"DEEP LEARNING MODEL IMPROVEMENT: {improvement:+.2f}%")
         print("="*60)
 
-        # Opcionális: Confusion Matrix összehasonlítás (csak szövegesen a diagonális)
-        cm_base = confusion_matrix(y_true, y_pred_baseline)
         cm_dl = confusion_matrix(y_true, y_pred_dl)
         print("\nCorrect Predictions per Class (Baseline vs DL):")
         for i, name in enumerate(class_names):

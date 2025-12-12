@@ -6,7 +6,7 @@ import random
 import config
 from utils import get_logger
 
-# Importáljuk a modell osztályt a training scriptből
+# Import module
 from importlib import import_module
 train_module = import_module('02-train')
 FlagClassifier = train_module.FlagClassifier
@@ -16,7 +16,7 @@ logger = get_logger()
 def run_inference():
     logger.info("--- Inference Demo Started ---")
 
-    # 1. Adatok betöltése (Hogy legyen mit tesztelni)
+    # 1. Load Data (to have something to test)
     if not os.path.exists(config.PROCESSED_DATA_PATH):
         logger.error(f"Data not found at {config.PROCESSED_DATA_PATH}")
         return
@@ -25,7 +25,7 @@ def run_inference():
     X = torch.FloatTensor(data['X'])
     y = torch.LongTensor(data['y'])
 
-    # 2. Modell betöltése
+    # 2. Load Model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = FlagClassifier(input_size=config.NUM_FEATURES, num_classes=config.NUM_CLASSES).to(device)
     
@@ -38,15 +38,14 @@ def run_inference():
 
     model.eval()
 
-    # 3. Mintavételezés és Predikció
-    # Válasszunk 5 véletlenszerű mintát a demonstrációhoz
+    # 3. Sampling and Prediction
+    # Select 5 random samples
     num_samples = 5
     if len(X) < num_samples:
         num_samples = len(X)
         
     indices = random.sample(range(len(X)), num_samples)
     
-    # Osztálynevek (Zaj nélkül, a 01-preprocessing.py és config.py alapján)
     class_names = [
         "Bull Normal", "Bull Pennant", "Bull Wedge",
         "Bear Normal", "Bear Pennant", "Bear Wedge"
@@ -57,7 +56,7 @@ def run_inference():
 
     with torch.no_grad():
         for i, idx in enumerate(indices):
-            # Minta előkészítése: (Sequence, Features) -> (1, Features, Sequence)
+            # Prepare sample: (Sequence, Features) -> (1, Features, Sequence)
             sample = X[idx].unsqueeze(0).to(device)
             true_label_idx = y[idx].item()
             
@@ -65,14 +64,14 @@ def run_inference():
             logits = model(sample)
             probs = F.softmax(logits, dim=1)
             
-            # Eredmény kinyerése
+            # Extract results
             conf, pred_idx = torch.max(probs, 1)
             
             predicted_class = class_names[pred_idx.item()]
             actual_class = class_names[true_label_idx]
             confidence = conf.item() * 100
             
-            # Eredmény logolása
+            # Log results
             result_status = "✅ CORRECT" if pred_idx.item() == true_label_idx else "❌ WRONG"
             
             logger.info(f"Sample #{i+1} (ID: {idx})")

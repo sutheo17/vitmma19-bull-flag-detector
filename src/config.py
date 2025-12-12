@@ -1,52 +1,53 @@
 # src/config.py
 import os
 
-# --- Útvonalak (Docker kompatibilis) ---
-DATA_DIR = "/app/data"  # A docker run -v paranccsal ide mountoljuk a fájlokat
+# --- Paths (Docker compatible) ---
+DATA_DIR = "/app/data"  # Mount point for docker run -v
 LABELS_JSON_PATH = os.path.join(DATA_DIR, "labels.json")
 PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed_data.npz")
 MODEL_SAVE_PATH = "model.pth"
 DATABASE_LINK = "https://bmeedu-my.sharepoint.com/:u:/g/personal/gyires-toth_balint_vik_bme_hu/IQAK7NwTLL-kSZzXylIIkQFOAX1TXEZYIDQomXH4sf0-zLQ?download=1"
 
-# --- Adatfeldolgozási paraméterek ---
-SEQ_LENGTH = 60       # Bemeneti ablak hossza (pl. 60 gyertya)
+# --- Data Processing Parameters ---
+SEQ_LENGTH = 80      # Input window length (increased to accommodate pole + flag)
 NUM_FEATURES = 4      # Open, High, Low, Close
+TEST_SPLIT = 0.2
 
-# --- Osztályok (Labels) ---
-# 1: Bullish Normal
-# 2: Bullish Pennant
-# 3: Bullish Wedge
-# 4: Bearish Normal
-# 5: Bearish Pennant
-# 6: Bearish Wedge
+# --- Classes (Labels) ---
+# 0: Bullish Normal
+# 1: Bullish Pennant
+# 2: Bullish Wedge
+# 3: Bearish Normal
+# 4: Bearish Pennant
+# 5: Bearish Wedge
 NUM_CLASSES = 6
 
-# --- HEURISZTIKA BEÁLLÍTÁSOK ---
-# A normalizált adatokhoz (ahol 0.01 kb 1% árváltozást jelent) igazított küszöbértékek.
-# Ezek határozzák meg, hogy a konszolidáció dőlésszöge "lapos" (Pennant) vagy "meredek" (Flag/Wedge).
-PENNANT_THRESHOLD = 0.00004  # Ha a meredekség abszolút értéke ez alatt van -> Pennant (közel vízszintes)
-WEDGE_THRESHOLD = 0.00015   # Ha a meredekség ez alatt van (de Pennant felett) -> Wedge (kevésbé meredek)
-                            # Ha ezen felül van -> Normal Flag (erős korrekció)
-
-MA_WINDOW = 5  # Mozgóátlag ablak mérete a konszolidációs szakaszon
-
+# --- Training Hyperparameters ---
 BATCH_SIZE = 16
 EPOCHS = 200
 LEARNING_RATE = 0.0008
-WEIGHT_DECAY = 0.0
+WEIGHT_DECAY = 1e-5
 DROPOUT_RATE = 0.15
 
-# scheduler / early stop
+# --- Optimization / Scheduler ---
 LR_FACTOR = 0.5
 LR_PATIENCE = 10
 EARLY_STOP_PATIENCE = 40
+MAX_GRAD_NORM = 5.0   # Gradient clipping
 
-# grad clip
-MAX_GRAD_NORM = 5.0
+# --- Augmentation Parameters ---
+SCALE_JITTER = 0.03
+SHIFT_ENABLED = False # Time shifting
+SHIFT_RANGE = (-1, 1)
 
-# augmentation params
-SCALE_JITTER = 0.03  # +/-3%
-SHIFT_ENABLED = False
-SHIFT_RANGE = (-1, 1)  # if enabled, small shifts only
+# --- Heuristic / Baseline Settings ---
+# Thresholds adjusted for normalized data (where 0.01 approx 1% price change).
+# Determines if consolidation slope is "flat" (Pennant) or "steep" (Flag/Wedge).
+PENNANT_THRESHOLD = 0.00004  # Absolute slope below this -> Pennant (near horizontal)
+WEDGE_THRESHOLD = 0.00015    # Slope below this (but above Pennant) -> Wedge
+                             # Above this -> Normal Flag (strong correction)
 
-TEST_SPLIT = 0.2
+MA_WINDOW = 5                # Moving Average window for consolidation analysis
+
+# --- Evaluation Settings ---
+SAVE_ERRORS_TO_OUPUT = False  # Save graphs of misclassified samples

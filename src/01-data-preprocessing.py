@@ -15,20 +15,16 @@ def download_and_setup_data(url=config.DATABASE_LINK, output_dir=config.DATA_DIR
     Downloads the ZIP file from the specified URL and extracts it to the target directory.
     Uses the central logger.
     """
-    # 1. Create target directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         logger.info(f"Directory created: {output_dir}")
 
-    # Temporary filename for download
     temp_zip = "temp_dataset_download.zip"
-
     logger.info(f"Starting download from: {url} ...")
     
     try:
-        # 2. Download with streaming
         response = requests.get(url, stream=True)
-        response.raise_for_status() # Raise error if link is unreachable
+        response.raise_for_status()
         
         total_size = 0
         with open(temp_zip, "wb") as f:
@@ -41,7 +37,6 @@ def download_and_setup_data(url=config.DATABASE_LINK, output_dir=config.DATA_DIR
         logger.info(f"Download complete! Size: {size_mb:.2f} MB")
         logger.info("Unzipping in progress...")
 
-        # 3. Extract to target directory
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
             zip_ref.extractall(output_dir)
             
@@ -51,7 +46,6 @@ def download_and_setup_data(url=config.DATABASE_LINK, output_dir=config.DATA_DIR
         logger.error(f"Error occurred during download/extraction: {e}")
     
     finally:
-        # 4. Cleanup: remove temporary zip
         if os.path.exists(temp_zip):
             os.remove(temp_zip)
             logger.info("Temporary files deleted.")
@@ -100,24 +94,18 @@ def get_label_id(label_str):
     return -1
 
 def robust_parse_dates(df):
-    """
-    Improved date parsing for DataFrame columns.
-    """
+    """Improved date parsing for DataFrame columns."""
     col_map = {c.lower(): c for c in df.columns}
     ts_col = col_map.get('timestamp') or col_map.get('time') or col_map.get('date')
     
     if not ts_col:
         return df
 
-    # Attempt to convert to numeric
     temp_col = pd.to_numeric(df[ts_col], errors='coerce')
     
-    # If majority are numbers (Unix timestamp)
     if temp_col.notna().sum() > len(df) * 0.8:
         temp_col = temp_col.ffill().bfill()
         first_val = temp_col.iloc[0]
-        
-        # > 3e10 (approx. year 1971 in seconds) -> likely ms
         if first_val > 3e10:
             df[ts_col] = pd.to_datetime(temp_col, unit='ms')
         else:
@@ -129,13 +117,9 @@ def robust_parse_dates(df):
     return df
 
 def parse_annotation_time(time_val):
-    """
-    Safe parsing of a single JSON time value.
-    Handles string-wrapped Unix timestamps (ms) as well.
-    """
+    """Safe parsing of a single JSON time value."""
     if time_val is None:
         return None
-        
     try:
         numeric_ts = float(time_val)
         if numeric_ts > 3e10: 
@@ -144,6 +128,68 @@ def parse_annotation_time(time_val):
             return pd.to_datetime(numeric_ts, unit='s')
     except (ValueError, TypeError):
         return pd.to_datetime(time_val)
+
+def find_optimal_pole_start(df, flag_start_time, label_id, max_lookback=60):
+    """
+    Finds the optimal pole start (impulse start) before the flag consolidation
+    based on slope maximization.
+    """
+    if flag_start_time not in df.index:
+        try:
+            loc_idx = df.index.get_loc(flag_start_time, method='nearest')
+        except:
+            return flag_start_time
+    else:
+        loc_idx = df.index.get_indexer([flag_start_time])[0]
+
+    # If too close to the beginning of data
+    if loc_idx < 5:
+        return flag_start_time
+
+    start_search_idx = max(0, loc_idx - max_lookback)
+    
+    # window_df rows: [candidate_pole_start ... flag_start]
+    window_df = df.iloc[start_search_idx : loc_idx + 1]
+    
+    if len(window_df) < 2:
+        return flag_start_time
+
+    # Anchor points (start of the flag)
+    anchor_high = window_df.iloc[-1]['High']
+    anchor_low  = window_df.iloc[-1]['Low']
+
+    best_start_time = flag_start_time
+    max_slope = -1.0 
+
+    # 0,1,2 = Bullish (Prev trend was Up), 3,4,5 = Bearish (Prev trend was Down)
+    is_bullish = label_id in [0, 1, 2]
+    
+    flag_idx_in_window = len(window_df) - 1
+    
+    # Iterate backwards to find best start
+    for i in range(len(window_df) - 1):
+        candidate_bar = window_df.iloc[i]
+        steps_distance = flag_idx_in_window - i
+        
+        if steps_distance == 0: continue
+
+        slope = 0
+        if is_bullish:
+            # Bullish: How much did it rise? (Flag High - Candidate Low)
+            price_diff = anchor_high - candidate_bar['Low']
+            if price_diff > 0:
+                slope = price_diff / steps_distance
+        else:
+            # Bearish: How much did it fall? (Candidate High - Flag Low)
+            price_diff = candidate_bar['High'] - anchor_low
+            if price_diff > 0:
+                slope = price_diff / steps_distance
+        
+        if slope > max_slope:
+            max_slope = slope
+            best_start_time = candidate_bar.name # Timestamp
+            
+    return best_start_time
 
 def main():
     download_and_setup_data()
@@ -156,20 +202,16 @@ def main():
     all_y = []
     
     subdirs = [d for d in os.listdir(config.DATA_DIR) if os.path.isdir(os.path.join(config.DATA_DIR, d))]
-    
     total_tasks_processed = 0
 
     for subdir in subdirs:
         current_dir = os.path.join(config.DATA_DIR, subdir)
         
-        # --- Search for JSON file ---
         try:
             files_in_subdir = os.listdir(current_dir)
             json_filename = next((f for f in files_in_subdir if f.endswith('.json')), None)
             
             if json_filename is None:
-                # If no JSON found, skip silently or log debug info
-                # logger.debug(f"No JSON found in {subdir}, skipping.")
                 continue
                 
             labels_path = os.path.join(current_dir, json_filename)
@@ -177,7 +219,6 @@ def main():
         except Exception as e:
             logger.warning(f"Error accessing folder {subdir}: {e}")
             continue
-        # ---------------------------
 
         logger.info(f"Processing folder: {subdir} (Found JSON: {json_filename})")
         
@@ -197,9 +238,8 @@ def main():
             
             try:
                 df = pd.read_csv(csv_path)
+                # Ensure column names are standardized
                 df.columns = [c.capitalize() for c in df.columns] 
-                
-                # 1. Fix CSV Timestamp
                 df = robust_parse_dates(df)
                 
             except Exception as e:
@@ -219,15 +259,18 @@ def main():
                     label_id = get_label_id(labels[0])
                     if label_id == -1: continue
                     
-                    # 2. Fix JSON Timestamps
-                    start_time = parse_annotation_time(val.get('start'))
-                    end_time = parse_annotation_time(val.get('end'))
+                    # 1. Parse original timestamps
+                    flag_start_time = parse_annotation_time(val.get('start'))
+                    flag_end_time = parse_annotation_time(val.get('end'))
                     
-                    if start_time is None or end_time is None:
+                    if flag_start_time is None or flag_end_time is None:
                         continue
                     
-                    # Slice time window
-                    mask = (df.index >= start_time) & (df.index <= end_time)
+                    # 2. Find Optimal Pole Start (Context Expansion)
+                    pole_start_time = find_optimal_pole_start(df, flag_start_time, label_id, max_lookback=60)
+                    
+                    # 3. Slice window: From Pole Start to Flag End
+                    mask = (df.index >= pole_start_time) & (df.index <= flag_end_time)
                     
                     try:
                         window = df.loc[mask, ['Open', 'High', 'Low', 'Close']].values
@@ -238,7 +281,12 @@ def main():
                             continue
 
                     if len(window) > 5:
+                        # 4. Normalize
+                        # window[0] is now the start of the pole.
+                        # This preserves the trend direction (Pos for Bull, Neg for Bear)
                         window_norm = window / window[0] - 1.0
+                        
+                        # 5. Interpolate to fixed size
                         window_resized = interpolate_sequence(window_norm, config.SEQ_LENGTH)
                         
                         all_X.append(window_resized)

@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score, mean_absolute_error
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,48 +16,33 @@ logger = get_logger()
 
 def save_misclassified_examples(model, test_loader, device, output_dir):
     model.eval()
+    class_names = ["Bull_Normal", "Bull_Pennant", "Bull_Wedge", "Bear_Normal", "Bear_Pennant", "Bear_Wedge"]
+    error_dir = os.path.join(output_dir, "all_errors")
+    os.makedirs(error_dir, exist_ok=True)
     
-    # Osztályok indexei a te mappinged alapján
-    # Bear Normal = 3
-    # Bull Wedge = 2
-    TRUE_CLASS = 3
-    PRED_CLASS = 2
-    
-    count = 0
-    os.makedirs(os.path.join(output_dir, "errors"), exist_ok=True)
-    
-    import matplotlib.pyplot as plt
-
+    global_count = 0
     with torch.no_grad():
         for inputs, labels in test_loader:
             inputs = inputs.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs, 1)
             
-            # Keressük meg a hibásakat
             for i in range(len(labels)):
-                if labels[i] == TRUE_CLASS and predicted[i] == PRED_CLASS:
-                    # Kimentjük a képet
-                    seq = inputs[i].cpu().numpy().T # (Features, Seq) -> (Seq, Features) transzponálás vissza
-                    
-                    plt.figure(figsize=(5, 3))
-                    # Csak a Close árat (3. index) rajzoljuk ki, vagy az összeset
-                    # Open=0, High=1, Low=2, Close=3
-                    plt.plot(seq[:, 3], label='Close Price', color='black')
-                    plt.plot(seq[:, 0], label='Open', linestyle='--', alpha=0.5)
-                    plt.title(f"True: BearNormal(3) -> Pred: BullWedge(2)\nIndex: {count}")
-                    plt.legend()
-                    plt.grid(True)
-                    
-                    filename = os.path.join(output_dir, "errors", f"error_bear3_pred_bull2_{count}.png")
-                    plt.savefig(filename)
+                if labels[i] != predicted[i]:
+                    seq = inputs[i].cpu().numpy().T
+                    plt.figure(figsize=(6, 4))
+                    plt.plot(seq[:, 3], label='Close', color='black')
+                    plt.plot(seq[:, 0], label='Open', color='gray', linestyle='--')
+                    plt.title(f"Real: {class_names[labels[i]]} -> Pred: {class_names[predicted[i]]}")
+                    plt.savefig(os.path.join(error_dir, f"err_{global_count}.png"))
                     plt.close()
-                    
-                    count += 1
-                    if count >= 20: return # Elég az első 20-at látni
+                    global_count += 1
+    logger.info(f"Saved {global_count} misclassified images.")
 
 def evaluate():
-    logger.info("--- Evaluation Script ---")
+    logger.info("="*50)
+    logger.info("FINAL EVALUATION ON TEST SET")
+    logger.info("="*50)
 
     if not os.path.exists(config.PROCESSED_DATA_PATH):
         logger.error("Data file not found.")
@@ -67,6 +52,8 @@ def evaluate():
     X = torch.FloatTensor(data['X'])
     y = torch.LongTensor(data['y'])
 
+    # Use the same split logic or a separate test set if defined
+    # For now, using the whole dataset as a demo, but in real scenarios, use a held-out set
     test_loader = DataLoader(TensorDataset(X, y), batch_size=config.BATCH_SIZE, shuffle=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,49 +75,40 @@ def evaluate():
             inputs = inputs.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
-            
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.numpy())
 
-    # FRISSÍTETT OSZTÁLYNEVEK (6 db)
-    class_names = [
-        "Bull Normal", "Bull Pennant", "Bull Wedge",
-        "Bear Normal", "Bear Pennant", "Bear Wedge"
-    ]
+    class_names = ["Bull Normal", "Bull Pennant", "Bull Wedge", "Bear Normal", "Bear Pennant", "Bear Wedge"]
+    
+    # 6. FINAL EVALUATION METRICS LOGGING
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds, average='weighted')
+    # MAE doesn't make much sense for classification, but included if requested
+    mae = mean_absolute_error(all_labels, all_preds)
+
+    logger.info(f"Final Accuracy: {acc*100:.2f}%")
+    logger.info(f"Weighted F1-Score: {f1:.4f}")
+    logger.info(f"Mean Absolute Error: {mae:.4f}")
     
     report = classification_report(all_labels, all_preds, target_names=class_names, zero_division=0)
-    acc_dl = (np.array(all_preds) == np.array(all_labels)).mean()
-
-    logger.info("\nClassification Report:")
-    print("\n" + "="*60)
-    print(f"DEEP LEARNING MODEL REPORT (Accuracy: {acc_dl*100:.2f}%)")
-    print("="*60)
-    print(report)
-    print("-"*60)
+    logger.info("\nDetailed Classification Report:\n" + report)
     
+    # Save results to file
     output_dir = "/app/output"
     os.makedirs(output_dir, exist_ok=True)
-    
-    report_path = os.path.join(output_dir, "evaluation_metrics.txt")
-    with open(report_path, "w") as f:
-        f.write("Evaluation Metrics (DL)\n")
-        f.write("===================================\n\n")
-        f.write(report)
-    logger.info(f"Metrics saved to {report_path}")
+    with open(os.path.join(output_dir, "final_metrics.txt"), "w") as f:
+        f.write(f"Accuracy: {acc}\nF1: {f1}\nMAE: {mae}\n\n{report}")
 
+    # Confusion Matrix
     cm = confusion_matrix(all_labels, all_preds)
-    
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
     plt.title('Confusion Matrix')
-    
-    cm_path = os.path.join(output_dir, "confusion_matrix.png")
-    plt.savefig(cm_path)
-    logger.info(f"Confusion matrix saved to {cm_path}")
+    plt.savefig(os.path.join(output_dir, "confusion_matrix.png"))
+    logger.info("Confusion matrix saved.")
 
-    save_misclassified_examples(model, test_loader, device, output_dir)
+    if config.SAVE_ERRORS_TO_OUPUT:
+        save_misclassified_examples(model, test_loader, device, output_dir)
 
 if __name__ == "__main__":
     evaluate()

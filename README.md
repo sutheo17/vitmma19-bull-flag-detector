@@ -10,14 +10,9 @@
 
 [Provide a short textual description of the solution here. Explain the problem, the model architecture chosen, the training methodology, and the results.]
 
-## Extra Credit Justification
-
-[If you selected "Yes" for Aiming for +1 Mark, describe here which specific part of your work (e.g., innovative model architecture, extensive experimentation, exceptional performance) you believe deserves an extra mark.]
-
 ## Docker Instructions
 
 This project is containerized using Docker. Follow the instructions below to build and run the solution.
-[Adjust the commands that show how do build your container and run it with log output.]
 
 ### Build
 
@@ -32,6 +27,8 @@ docker build -t dl-project .
 To run the solution, use the following command. You must mount your local data directory to `/app/data` inside the container.
 
 **To capture the logs for submission (required), redirect the output to a file:**
+
+TODOOOOOOO
 
 ```bash
 docker run -v /absolute/path/to/your/local/data:/app/data dl-project > log/run.log 2>&1
@@ -53,6 +50,7 @@ The repository is structured as follows:
     - `02-training.py`: The main script for defining the model and executing the training loop.
     - `03-evaluation.py`: Scripts for evaluating the trained model on test data and generating metrics.
     - `04-inference.py`: Script for running the model on new, unseen data to generate predictions.
+    - `05-baseline-comparison.py`: ...
     - `config.py`: Configuration file containing hyperparameters (e.g., epochs) and paths.
     - `utils.py`: Helper functions and utilities used across different scripts.
 

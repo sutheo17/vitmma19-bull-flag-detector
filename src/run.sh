@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "[run.sh] Starting full pipeline run at $(date --iso-8601=seconds)"
+
 echo "Running data processing..."
 python 01-data-preprocessing.py
 
@@ -22,4 +24,4 @@ python 04-inference.py
 echo "Running baseline comparison..."
 python 05-baseline-comparison.py
 
-echo "Pipeline finished successfully."
+echo "[run.sh] Pipeline finished at $(date --iso-8601=seconds)"

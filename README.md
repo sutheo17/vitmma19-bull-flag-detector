@@ -3,25 +3,25 @@
 ## Data Preparation & Setup
 The data pipeline supports a hybrid approach, allowing for both fully automated ingestion and manual data injection for custom testing or inference.
 
-Directory Structure & Docker -> The system relies on two local folders, Data and Output, mounted to the container at runtime:
+Directory Structure & Docker -> The system relies on two local folders, **Data** and **Output**, mounted to the container at runtime:
 
-* `/app/data` (Mapped to local Data): The workspace for datasets (raw and processed).
+* `/app/data` (Mapped to local **Data**): The workspace for datasets (raw and processed).
 
-* `/app/output` (Mapped to local Output): Confusion matrices, evaluation metrics and inference results get exported here.
+* `/app/output` (Mapped to local **Output**): Confusion matrices, evaluation metrics and inference results get exported here.
 
 There are two ways to add training / inference data:
 
 1. Automated Import -> **!! By default !!**, `01-data-preprocessing.py` automates the process:
 
-Fetches the primary dataset ZIP from the configured URL (url is in `config.py`, it downloads my dataset from `OneDrive Repository/bullflagdetector/XOBJYX/data.zip`) and extracts it into /app/data. This automatically populates the training data folders (e.g., XOBJYX, J2QIYD...) and also provides the inference folder containing sample CSVs, allowing for immediate prediction testing without any manual setup.
+Fetches the primary dataset ZIP from the configured URL (url is in `config.py`, it downloads my dataset from `OneDrive Repository/bullflagdetector/XOBJYX/data.zip`) and extracts it into **Data** folder. This automatically populates the training data folders (e.g., XOBJYX, J2QIYD...) and also provides the inference folder containing sample CSVs, allowing for immediate prediction testing without any manual setup.
 
 You can toggle this on / off using the `DOWNLOAD_FROM_ONEDRIVE` variable inside `config.py`.
 
 2. Manual Data Injection -> Users can manually extend / add the dataset or run predictions by adding files directly to the local Data folder:
 
-**Training/Test Data:** To add labeled data, place a new subfolder inside Data containing your CSV files and a corresponding .json label file. The preprocessing script automatically parses these inputs, extracting specific labeled flag instances from the CSVs based on the JSON timestamps - handling cases where a single CSV file contains multiple distinct flags - and integrates them into the training set.
+**Training/Test Data:** To add labeled data, place a new subfolder inside **Data** containing your CSV files and a corresponding .json label file. The preprocessing script automatically parses these inputs, extracting specific labeled flag instances from the CSVs based on the JSON timestamps - handling cases where a single CSV file contains multiple distinct flags - and integrates them into the training set.
 
-**Inference Data:** To predict on new assets, simply drop raw CSV files into the Data/inference folder. The `04-inference.py` script detects these files, processes them, and outputs predictions with confidence scores (assuming the model is already trained).
+**Inference Data:** To predict on new assets, simply drop raw CSV files into the **Data/inference** folder. The `04-inference.py` script detects these files, processes them, and outputs predictions with confidence scores (assuming the model is already trained).
 ## Solution Description
 
 ### Problem 

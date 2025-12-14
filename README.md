@@ -69,8 +69,8 @@ To run the solution, use the following command. You must mount your local data d
 docker run --rm --gpus all -v /absolute/path/to/your/local/data:/app/data -v /absolute/path/to/your/local/output:/app/output dl-project > log/run.log 2>&1
 ```
 
-*   Replace `/absolute/path/to/your/local/data` with the actual path to your dataset on your host machine that meets the [Data preparation requirements](#data-preparation).
-*   Replace `/absolute/path/to/your/local/output` with the actual path to your desired output folder on your host machine that meets the [Data preparation requirements](#data-preparation).
+*   Replace `/absolute/path/to/your/local/data` with the actual path to your dataset on your host machine that meets the [Data Preparation & Setup](#data-preparation--setup).
+*   Replace `/absolute/path/to/your/local/output` with the actual path to your desired output folder on your host machine that meets the [Data Preparation & Setup](#data-preparation--setup).
 *   The `> log/run.log 2>&1` part ensures that all output (standard output and errors) is saved to `log/run.log`.
 *   The container is configured to run every step (data preprocessing, training, evaluation, inference, baseline comparison).
 

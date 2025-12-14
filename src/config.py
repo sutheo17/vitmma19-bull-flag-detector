@@ -5,12 +5,12 @@ import os
 DATA_DIR = "/app/data"  # Mount point for docker run -v
 OUTPUT_DIR = "/app/output"
 INFERENCE_DIR = "/app/data/inference"
-LABELS_JSON_PATH = os.path.join(DATA_DIR, "labels.json")
 PROCESSED_DATA_PATH = os.path.join(DATA_DIR, "processed_data.npz")
 MODEL_SAVE_PATH = "model.pth"
 DATABASE_LINK = "https://bmeedu-my.sharepoint.com/:u:/g/personal/gyires-toth_balint_vik_bme_hu/IQCPx-aGyYgLTYeUnwMncbknAaI2NMSz4DnbS13UYvMQIOI?download=1"
 
 # --- Data Processing Parameters ---
+DOWNLOAD_FROM_ONEDRIVE = True  # If True, download dataset from DATABASE_LINK
 SEQ_LENGTH = 80      # Input window length (increased to accommodate pole + flag)
 NUM_FEATURES = 4      # Open, High, Low, Close
 TEST_SPLIT = 0.2

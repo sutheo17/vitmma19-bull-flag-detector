@@ -192,7 +192,10 @@ def find_optimal_pole_start(df, flag_start_time, label_id, max_lookback=60):
     return best_start_time
 
 def main():
-    download_and_setup_data()
+    if config.DOWNLOAD_FROM_ONEDRIVE:
+        download_and_setup_data()
+    else:
+        logger.info("Skipping download (DOWNLOAD_FROM_ONEDRIVE=False). Using local data.")
     
     if not os.path.exists(config.DATA_DIR):
         logger.error(f"Data directory not found: {config.DATA_DIR}")

@@ -11,7 +11,7 @@ Directory Structure & Docker -> The system relies on two local folders, Data and
 
 There are two ways to add training / inference data:
 
-1. Automated Ingestion -> **!! By default !!**, `01-data-preprocessing.py` automates the process:
+1. Automated Import -> **!! By default !!**, `01-data-preprocessing.py` automates the process:
 
 Fetches the primary dataset ZIP from the configured URL (url is in `config.py`, it downloads my dataset from `OneDrive Repository/bullflagdetector/XOBJYX/data.zip`) and extracts it into /app/data. This automatically populates the training data folders (e.g., XOBJYX, J2QIYD...) and also provides the inference folder containing sample CSVs, allowing for immediate prediction testing without any manual setup.
 

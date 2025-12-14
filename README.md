@@ -1,7 +1,7 @@
 # Project Details
 
 ## Data Preparation & Setup
-The data pipeline supports a hybrid approach, allowing for both fully automated ingestion and manual data injection for custom testing or inference.
+The data pipeline supports a hybrid approach, allowing for both fully automated import and manual data injection for custom testing or inference.
 
 Directory Structure & Docker -> The system relies on two local folders, **Data** and **Output**, mounted to the container at runtime:
 

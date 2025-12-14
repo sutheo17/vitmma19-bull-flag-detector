@@ -5,9 +5,9 @@ The data pipeline supports a hybrid approach, allowing for both fully automated 
 
 Directory Structure & Docker -> The system relies on two local folders, Data and Output, mounted to the container at runtime:
 
-* /app/data (Mapped to local Data): The workspace for datasets (raw and processed).
+* `/app/data` (Mapped to local Data): The workspace for datasets (raw and processed).
 
-* /app/output (Mapped to local Output): Confusion matrices, evaluation metrics and inference results get exported here.
+* `/app/output` (Mapped to local Output): Confusion matrices, evaluation metrics and inference results get exported here.
 
 There are two ways to add training / inference data:
 

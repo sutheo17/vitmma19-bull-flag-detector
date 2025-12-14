@@ -94,9 +94,8 @@ def evaluate():
     logger.info("\nDetailed Classification Report:\n" + report)
     
     # Save results to file
-    output_dir = "/app/output"
-    os.makedirs(output_dir, exist_ok=True)
-    with open(os.path.join(output_dir, "final_metrics.txt"), "w") as f:
+    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+    with open(os.path.join(config.OUTPUT_DIR, "final_metrics.txt"), "w") as f:
         f.write(f"Accuracy: {acc}\nF1: {f1}\nMAE: {mae}\n\n{report}")
 
     # Confusion Matrix
@@ -104,11 +103,10 @@ def evaluate():
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.title('Confusion Matrix')
-    plt.savefig(os.path.join(output_dir, "confusion_matrix.png"))
+    plt.savefig(os.path.join(config.OUTPUT_DIR, "confusion_matrix.png"))
     logger.info("Confusion matrix saved.")
 
     if config.SAVE_ERRORS_TO_OUPUT:
-        save_misclassified_examples(model, test_loader, device, output_dir)
-
+        save_misclassified_examples(model, test_loader, device, config.OUTPUT_DIR)
 if __name__ == "__main__":
     evaluate()

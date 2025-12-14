@@ -163,9 +163,8 @@ def run_baseline_comparison():
     print(report_baseline)
     
     # Save Baseline Metrics to File
-    output_dir = "/app/output"
-    os.makedirs(output_dir, exist_ok=True)
-    baseline_report_path = os.path.join(output_dir, "baseline_metrics.txt")
+    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+    baseline_report_path = os.path.join(config.OUTPUT_DIR, "baseline_metrics.txt")
     
     with open(baseline_report_path, "w") as f:
         f.write(f"Baseline Heuristic Report (Accuracy: {acc_baseline*100:.2f}%)\n")
@@ -181,7 +180,7 @@ def run_baseline_comparison():
     plt.ylabel('True')
     plt.title('Baseline Confusion Matrix')
     
-    cm_path = os.path.join(output_dir, "baseline_confusion_matrix.png")
+    cm_path = os.path.join(config.OUTPUT_DIR, "baseline_confusion_matrix.png")
     plt.savefig(cm_path)
     logger.info(f"Baseline Confusion Matrix saved to {cm_path}")
     plt.close()

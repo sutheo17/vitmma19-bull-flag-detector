@@ -97,6 +97,7 @@ def evaluate():
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     with open(os.path.join(config.OUTPUT_DIR, "final_metrics.txt"), "w") as f:
         f.write(f"Accuracy: {acc}\nF1: {f1}\nMAE: {mae}\n\n{report}")
+    logger.info(f"Final metrics saved to {os.path.join(config.OUTPUT_DIR, 'final_metrics.txt')}")
 
     # Confusion Matrix
     cm = confusion_matrix(all_labels, all_preds)
@@ -104,7 +105,7 @@ def evaluate():
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.title('Confusion Matrix')
     plt.savefig(os.path.join(config.OUTPUT_DIR, "confusion_matrix.png"))
-    logger.info("Confusion matrix saved.")
+    logger.info(f"Confusion matrix saved to {os.path.join(config.OUTPUT_DIR, 'confusion_matrix.png')}")
 
     if config.SAVE_ERRORS_TO_OUPUT:
         save_misclassified_examples(model, test_loader, device, config.OUTPUT_DIR)

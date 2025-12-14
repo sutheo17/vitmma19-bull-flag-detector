@@ -184,6 +184,7 @@ Running model training...
 2025-12-14 10:35:48,275 - INFO - Epoch [96/200] Train Loss: 0.8708 Acc: 64.31% | Val Loss: 1.4025 Acc: 35.94%
 2025-12-14 10:35:48,276 - INFO - Early stopping triggered.
 2025-12-14 10:35:48,276 - INFO - Training phase finished.
+2025-12-14 10:35:48,300 - INFO - Model save path: model.pth
 Running model evaluation...
 2025-12-14 10:35:50,467 - INFO - ==================================================
 2025-12-14 10:35:50,467 - INFO - FINAL EVALUATION ON TEST SET
@@ -207,7 +208,8 @@ Bear Pennant       0.47      0.77      0.59        31
    macro avg       0.63      0.64      0.61       319
 weighted avg       0.69      0.62      0.62       319
 
-2025-12-14 10:35:51,524 - INFO - Confusion matrix saved.
+2025-12-14 10:35:51,499 - INFO - Final metrics saved to /app/output/final_metrics.txt
+2025-12-14 10:35:51,524 - INFO - Confusion matrix saved to /app/output/confusion_matrix.png
 Running model inference...
 2025-12-14 10:35:53,329 - INFO - ==================================================
 2025-12-14 10:35:53,329 - INFO - STARTING INFERENCE

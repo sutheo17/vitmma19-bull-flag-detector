@@ -253,6 +253,7 @@ def train():
                 break
 
     logger.info('Training phase finished.')
+    logger.info('Model save path: %s', config.MODEL_SAVE_PATH)
 
 if __name__ == '__main__':
     train()

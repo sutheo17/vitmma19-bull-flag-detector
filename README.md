@@ -21,8 +21,7 @@ You can toggle this on / off using the `DOWNLOAD_FROM_ONEDRIVE` variable inside 
 
 **Training/Test Data:** To add labeled data, place a new subfolder inside Data containing your CSV files and a corresponding .json label file. The preprocessing script automatically parses these inputs, extracting specific labeled flag instances from the CSVs based on the JSON timestamps - handling cases where a single CSV file contains multiple distinct flags - and integrates them into the training set.
 
-**Inference Data:** To predict on new assets, simply drop raw CSV files into the Data/inference folder. The `04-inference.py` script detects these files, processes them, and outputs confidence scores without requiring retraining.
-
+**Inference Data:** To predict on new assets, simply drop raw CSV files into the Data/inference folder. The `04-inference.py` script detects these files, processes them, and outputs predictions with confidence scores (assuming the model is already trained).
 ## Solution Description
 
 ### Problem 
